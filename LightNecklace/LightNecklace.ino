@@ -32,6 +32,7 @@ uint32_t rSeed;
 int32_t millisDelta;
 
 #define MAX_UNSYNC (50*1000)
+//#define DEBUG_TX_RX
 
 typedef struct {
   uint32_t time;
@@ -202,8 +203,10 @@ boolean slaveService(boolean force)
         
         
         char buf[64];
+#ifdef DEBUG_TX_RX
         sprintf(buf, "now %lu seed %lu end %lu delta %ld\r\n", p.time, p.seed, p.eventEnd, deltaDelta);
         Serial.print(buf);
+#endif
         ret = true;
       }
       else
@@ -213,6 +216,17 @@ boolean slaveService(boolean force)
     }
   }
   return ret;
+}
+
+void printState()
+{
+  uint32_t _now = _millis();
+  uint32_t pick = random();
+  
+  char buf[64];
+  sprintf(buf, "_now = %lu pick %lu start %lu end %lu", _now, pick, eventStart, eventEnd);
+  Serial.println(buf);
+
 }
 
 void service(uint32_t seedIn)
@@ -230,8 +244,10 @@ void service(uint32_t seedIn)
     radio.write( &p, sizeof(Packet) );
     
     char buf[64];
+#ifdef DEBUG_TX_RX
     sprintf(buf, "now %lu seed %lu end %lu\r\n", p.time, p.seed, p.eventEnd);
     Serial.print(buf);
+#endif
     
   }
 }
@@ -275,8 +291,12 @@ void loop() {
     }
     duration(&eventStart, &eventEnd, 4000);  
     //duration(&eventStart, &eventEnd, 100+random()%7777);
-    
-    randomSeed(rSeed);
+//    printState();
+    randomSeed(eventEnd);
+    printState();
+    printState();
+    printState();
+    Serial.print("\r\n\r\n");
   }
   
 
