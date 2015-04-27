@@ -5,8 +5,14 @@
   This example code is in the public domain.
  */
  
-// Pin 13 has an LED connected on most Arduino boards.
-// give it a name:
+ 
+/*-----( Import needed libraries )-----*/
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
+/*-----( Declare Constants and Pin Numbers )-----*/
+#define CE_PIN   9
+#define CSN_PIN 10
 
 const int masterPin1 = 7;
 const int masterPin2 = 8;
@@ -16,10 +22,25 @@ const int greenPin = 5;
 const int bluePin = 6;
 const int pins[3] = {redPin, greenPin, bluePin};
 unsigned master = 1;
-unsigned long eventStart;
-unsigned long eventEnd;
-unsigned long nextEventStart;
-unsigned long nextEventEnd;
+uint32_t eventStart;
+uint32_t eventEnd;
+uint32_t nextEventStart;
+uint32_t nextEventEnd;
+uint32_t lastSync;
+uint32_t rSeed;
+uint32_t millisDelta;
+
+//typedef struct {
+//
+//} Packet;
+
+
+/*-----( Declare objects )-----*/
+RF24 radio(CE_PIN, CSN_PIN); // Create a Radio
+/*-----( Declare Variables )-----*/
+//int joystick[2];  // 2 element array holding Joystick readings
+const uint64_t pipe = 0xE8E9F1F2A0LL; // Define the transmit pipe
+
 
 void setMaster() {
   unsigned tied = 1;
@@ -40,8 +61,16 @@ void setMaster() {
     }
   }
   
+  master = tied;
+  
 //  Serial.print("tied together: ");
 //  Serial.println(tied);
+}
+
+uint32_t _millis()
+{
+  // alter if slave
+  return millis() + millisDelta;
 }
 
 // the setup routine runs once when you press reset:
@@ -55,12 +84,24 @@ void setup() {
   pinMode(bluePin, OUTPUT); 
   eventStart = 0;
   eventEnd = 4000;
+  lastSync = 0;
+  millisDelta = 0;
   setMaster();
+  radio.begin();
+  if( master )
+  {
+    radio.openWritingPipe(pipe);
+  }
+  else
+  {
+    radio.openReadingPipe(1,pipe);
+    radio.startListening();
+  }
 }
 
-void greenRamp(unsigned long tstart, unsigned long tend)
+void greenRamp(uint32_t tstart, uint32_t tend)
 {
-  unsigned long now = millis();
+  uint32_t now = millis();
   while(now<tend)
   {
     analogWrite(greenPin, map(now, tstart, tend, 0, 255));
@@ -68,13 +109,13 @@ void greenRamp(unsigned long tstart, unsigned long tend)
   }
 }
 
-void strobeBlue(unsigned long tstart, unsigned long tend)
+void strobeBlue(uint32_t tstart, uint32_t tend)
 {
   char buf[64];
 
-  unsigned long now = millis();
+  uint32_t now = millis();
   unsigned sections = random()%20+5;
-  unsigned long length = (tend-tstart)/sections;
+  uint32_t length = (tend-tstart)/sections;
 //  Serial.print("length");
 //  Serial.println(length);
 //  sprintf(buf, "len %ld tstart %ld tend %ld\r\n", length, tstart, tend);
@@ -94,33 +135,65 @@ void strobeBlue(unsigned long tstart, unsigned long tend)
   }
 }
 
-void duration(unsigned long *tstart, unsigned long *tend, unsigned long bump)
+void duration(uint32_t *tstart, uint32_t *tend, uint32_t bump)
 {
   *tstart = *tend;
   *tend = *tend + bump;
+}
+
+void service(uint32_t seedIn)
+{
+  uint32_t now = millis();
+    
+  if( master )
+  {
+    radio.write( &now, sizeof(now) );
+  //delay(1000);
+  }
+  else
+  {
+    if ( radio.available() )
+    {
+      uint32_t nowOTA;
+      radio.read( &nowOTA, sizeof(nowOTA) );
+      Serial.print("ota: ");
+      Serial.println(nowOTA);
+    }
+    else
+    {
+      Serial.println("noota");
+    }
+  }
 }
 
 // the loop routine runs over and over again forever:
 void loop() {  
   unsigned r = random();
   unsigned val = random();
-  unsigned long now = millis();
+  uint32_t now = millis();
   
-  unsigned long ramp_start = 0;
-  unsigned long ramp_end = 4000;
+  uint32_t ramp_start = 0;
+  uint32_t ramp_end = 4000;
+  
+ 
   
   while(1)
   {
-  greenRamp(eventStart, eventEnd);
-  analogWrite(greenPin,0);
-  delay(1);
-  duration(&eventStart, &eventEnd, 100+random()%7777);
-
+    // this allows us to capture the seed
+    rSeed = random();
+    randomSeed(rSeed);
+    service(rSeed);
     
-  strobeBlue(eventStart, eventEnd);
-  analogWrite(bluePin,0);
-  delay(1);
-  duration(&eventStart, &eventEnd, 100+random()%7777);
+    greenRamp(eventStart, eventEnd);
+    analogWrite(greenPin,0);
+    delay(1);
+    duration(&eventStart, &eventEnd, 100+random()%7777);
+  
+      
+    strobeBlue(eventStart, eventEnd);
+    analogWrite(bluePin,0);
+    delay(1);
+    duration(&eventStart, &eventEnd, 100+random()%7777);
   }
   
 
