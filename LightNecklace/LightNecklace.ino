@@ -144,6 +144,11 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
 //    Serial.println(now%length);
     slaveServiceQuick();
     now = _millis();
+    if( now+(tend-tstart) < eventStart ) // master was restarted to WAY earlier, lets bail
+    {
+      Serial.println("Bail master was restarted");
+      break;
+    }
   }
 }
 
@@ -154,8 +159,12 @@ void duration(uint32_t *tstart, uint32_t *tend, uint32_t bump)
 }
 
 // check interrupt pin and optionally call slaveService
-boolean slaveServiceQuick()
+void slaveServiceQuick()
 {
+  if( master )
+  {
+    return;
+  }
   // check int pin
   if( !digitalRead(RADIO_INT_PIN) )
   {
