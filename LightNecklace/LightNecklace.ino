@@ -108,6 +108,10 @@ void setup() {
   Serial.println(master?"Master":"Slave");
 }
 
+// master was restarted to WAY earlier, lets bail
+#define HELPER_BAIL_EARILY  if( now+(tend-tstart) < eventStart ){Serial.println("Bail master was restarted");break;}
+
+
 void greenRamp(uint32_t tstart, uint32_t tend)
 {
   uint32_t now = _millis();
@@ -117,6 +121,7 @@ void greenRamp(uint32_t tstart, uint32_t tend)
     analogWrite(greenPin, map(now, tstart, tend, 0, 255));
     slaveServiceQuick();
     now = _millis();
+    HELPER_BAIL_EARILY;
   }
 }
 
@@ -127,28 +132,23 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
   uint32_t now = _millis();
   unsigned sections = random()%20+5;
   uint32_t length = (tend-tstart)/sections;
-//  Serial.print("length");
-//  Serial.println(length);
-//  sprintf(buf, "len %ld tstart %ld tend %ld\r\n", length, tstart, tend);
-//  Serial.print(buf);
+
+  unsigned thisPin = pins[random()%3];
+
   while(now<tend)
   {
     if( now%(length*2) < length )
     {
-      analogWrite(bluePin, 0);
+      analogWrite(thisPin, 0);
     }
     else
     {
-      analogWrite(bluePin, 255);
+      analogWrite(thisPin, 255);
     }
 //    Serial.println(now%length);
     slaveServiceQuick();
     now = _millis();
-    if( now+(tend-tstart) < eventStart ) // master was restarted to WAY earlier, lets bail
-    {
-      Serial.println("Bail master was restarted");
-      break;
-    }
+    HELPER_BAIL_EARILY;
   }
 }
 
@@ -289,15 +289,17 @@ void loop() {
     
     if(rSeed % 2)
     {
-
-            strobeBlue(eventStart, eventEnd);
-      analogWrite(bluePin,0);
+      strobeBlue(eventStart, eventEnd);
     }
     else
     {
       greenRamp(eventStart, eventEnd);
-      analogWrite(greenPin,0);
     }
+    
+    analogWrite(bluePin,0);
+    analogWrite(redPin,0);
+    analogWrite(greenPin,0);
+    
     duration(&eventStart, &eventEnd, 4000);  
     //duration(&eventStart, &eventEnd, 100+random()%7777);
 //    printState();
