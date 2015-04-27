@@ -26,13 +26,16 @@ uint32_t eventStart;
 uint32_t eventEnd;
 uint32_t nextEventStart;
 uint32_t nextEventEnd;
-uint32_t lastSync;
+uint32_t lastSync; // measured in millis() time
 uint32_t rSeed;
-uint32_t millisDelta;
+int32_t millisDelta;
 
-//typedef struct {
-//
-//} Packet;
+#define MAX_UNSYNC (50*1000)
+
+typedef struct {
+  uint32_t time;
+  uint32_t seed;
+} Packet;
 
 
 /*-----( Declare objects )-----*/
@@ -101,11 +104,11 @@ void setup() {
 
 void greenRamp(uint32_t tstart, uint32_t tend)
 {
-  uint32_t now = millis();
+  uint32_t now = _millis();
   while(now<tend)
   {
     analogWrite(greenPin, map(now, tstart, tend, 0, 255));
-    now = millis();
+    now = _millis();
   }
 }
 
@@ -113,7 +116,7 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
 {
   char buf[64];
 
-  uint32_t now = millis();
+  uint32_t now = _millis();
   unsigned sections = random()%20+5;
   uint32_t length = (tend-tstart)/sections;
 //  Serial.print("length");
@@ -131,7 +134,7 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
       analogWrite(bluePin, 255);
     }
 //    Serial.println(now%length);
-    now = millis();
+    now = _millis();
   }
 }
 
@@ -141,23 +144,54 @@ void duration(uint32_t *tstart, uint32_t *tend, uint32_t bump)
   *tend = *tend + bump;
 }
 
+void slaveService(boolean force)
+{
+  if( !master )
+  {
+    uint32_t now = millis();
+    if(force || lastSync == 0 || (now-lastSync) > MAX_UNSYNC )
+    {
+      
+    }
+  }
+}
+
 void service(uint32_t seedIn)
 {
   uint32_t now = millis();
-    
+  
+  Packet p;  
+  
   if( master )
   {
-    radio.write( &now, sizeof(now) );
-  //delay(1000);
+    p.time = now;
+    p.seed = seedIn;
+    
+    radio.write( &p, sizeof(Packet) );
   }
   else
   {
     if ( radio.available() )
     {
-      uint32_t nowOTA;
-      radio.read( &nowOTA, sizeof(nowOTA) );
-      Serial.print("ota: ");
-      Serial.println(nowOTA);
+      radio.read( &p, sizeof(Packet) );
+      
+      // apply information from packet
+      randomSeed(p.seed);
+      millisDelta = p.time - now;
+
+      lastSync = now; // in millis() time
+      
+      // master is at 1500
+      // slave is at 0
+      
+      
+      
+      
+      char buf[64];
+      sprintf(buf, "now %lu seed %lu\r\n", p.time, p.seed);
+      Serial.print(buf);
+//      Serial.print("ota: ");
+//      Serial.println(nowOTA);
     }
     else
     {
@@ -170,7 +204,7 @@ void service(uint32_t seedIn)
 void loop() {  
   unsigned r = random();
   unsigned val = random();
-  uint32_t now = millis();
+//  uint32_t now = _millis();
   
   uint32_t ramp_start = 0;
   uint32_t ramp_end = 4000;
@@ -186,13 +220,11 @@ void loop() {
     
     greenRamp(eventStart, eventEnd);
     analogWrite(greenPin,0);
-    delay(1);
     duration(&eventStart, &eventEnd, 100+random()%7777);
   
       
     strobeBlue(eventStart, eventEnd);
     analogWrite(bluePin,0);
-    delay(1);
     duration(&eventStart, &eventEnd, 100+random()%7777);
   }
   
