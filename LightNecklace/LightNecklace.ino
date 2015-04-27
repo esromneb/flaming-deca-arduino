@@ -8,6 +8,9 @@
 // Pin 13 has an LED connected on most Arduino boards.
 // give it a name:
 
+const int masterPin1 = 7;
+const int masterPin2 = 8;
+
 const int redPin = 3;
 const int greenPin = 5;
 const int bluePin = 6;
@@ -17,6 +20,29 @@ unsigned long eventStart;
 unsigned long eventEnd;
 unsigned long nextEventStart;
 unsigned long nextEventEnd;
+
+void setMaster() {
+  unsigned tied = 1;
+  unsigned rd = 0;
+  int i;
+  
+  pinMode(masterPin1, INPUT);
+  pinMode(masterPin2, OUTPUT);
+  
+  for(i = 0; i < 4; i++)
+  {
+    rd = i%2;
+    digitalWrite(masterPin2, rd);
+    if( rd != digitalRead(masterPin1) )
+    {
+      tied = 0;
+      break;
+    }
+  }
+  
+//  Serial.print("tied together: ");
+//  Serial.println(tied);
+}
 
 // the setup routine runs once when you press reset:
 void setup() {                
@@ -29,6 +55,7 @@ void setup() {
   pinMode(bluePin, OUTPUT); 
   eventStart = 0;
   eventEnd = 4000;
+  setMaster();
 }
 
 void greenRamp(unsigned long tstart, unsigned long tend)
