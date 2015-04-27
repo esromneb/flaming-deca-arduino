@@ -13,6 +13,7 @@
 /*-----( Declare Constants and Pin Numbers )-----*/
 #define CE_PIN   9
 #define CSN_PIN 10
+#define RADIO_INT_PIN 4
 
 const int masterPin1 = 7;
 const int masterPin2 = 8;
@@ -35,6 +36,7 @@ int32_t millisDelta;
 typedef struct {
   uint32_t time;
   uint32_t seed;
+  uint32_t eventEnd;
 } Packet;
 
 
@@ -93,6 +95,7 @@ void setup() {
   radio.begin();
   if( master )
   {
+    radio.setPALevel(RF24_PA_LOW); // master tx low power for now
     radio.openWritingPipe(pipe);
   }
   else
@@ -100,14 +103,18 @@ void setup() {
     radio.openReadingPipe(1,pipe);
     radio.startListening();
   }
+  Serial.print("Boot: ");
+  Serial.println(master?"Master":"Slave");
 }
 
 void greenRamp(uint32_t tstart, uint32_t tend)
 {
   uint32_t now = _millis();
+  random();
   while(now<tend)
   {
     analogWrite(greenPin, map(now, tstart, tend, 0, 255));
+    slaveServiceQuick();
     now = _millis();
   }
 }
@@ -134,6 +141,7 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
       analogWrite(bluePin, 255);
     }
 //    Serial.println(now%length);
+    slaveServiceQuick();
     now = _millis();
   }
 }
@@ -144,16 +152,67 @@ void duration(uint32_t *tstart, uint32_t *tend, uint32_t bump)
   *tend = *tend + bump;
 }
 
-void slaveService(boolean force)
+// check interrupt pin and optionally call slaveService
+boolean slaveServiceQuick()
 {
+  // check int pin
+  if( !digitalRead(RADIO_INT_PIN) )
+  {
+    bool txok,txfail,rxready;
+    radio.whatHappened(txok,txfail,rxready);
+    if( rxready )
+    {
+      slaveService(true);
+      radio.stopListening();
+      radio.startListening();
+    }
+    else
+    {
+      Serial.println("int for some other reason");
+    }
+//    char buf[32];
+//    sprintf(buf,"hap %d %d %d", txok, txfail, rxready);
+//    Serial.println(buf);
+  }
+}
+
+// returns true if slave gets a packet
+boolean slaveService(boolean force)
+{
+  boolean ret = false;
   if( !master )
   {
+    Packet p;  
     uint32_t now = millis();
     if(force || lastSync == 0 || (now-lastSync) > MAX_UNSYNC )
     {
-      
+      if ( radio.available() )
+      {
+        radio.read( &p, sizeof(Packet) );
+        
+        // apply information from packet
+        int32_t delta = p.time - now;
+        randomSeed(p.seed);
+        eventEnd = p.eventEnd;
+        int32_t deltaDelta = delta-millisDelta;
+        millisDelta = delta;
+        
+        
+        lastSync = now; // in millis() time
+        
+        
+        char buf[64];
+        sprintf(buf, "now %lu seed %lu end %lu delta %ld\r\n", p.time, p.seed, p.eventEnd, deltaDelta);
+        Serial.print(buf);
+        ret = true;
+      }
+      else
+      {
+        Serial.print(".");
+      }
     }
   }
+  return ret;
 }
 
 void service(uint32_t seedIn)
@@ -166,37 +225,14 @@ void service(uint32_t seedIn)
   {
     p.time = now;
     p.seed = seedIn;
+    p.eventEnd = eventEnd;
     
     radio.write( &p, sizeof(Packet) );
-  }
-  else
-  {
-    if ( radio.available() )
-    {
-      radio.read( &p, sizeof(Packet) );
-      
-      // apply information from packet
-      randomSeed(p.seed);
-      millisDelta = p.time - now;
-
-      lastSync = now; // in millis() time
-      
-      // master is at 1500
-      // slave is at 0
-      
-      
-      
-      
-      char buf[64];
-      sprintf(buf, "now %lu seed %lu\r\n", p.time, p.seed);
-      Serial.print(buf);
-//      Serial.print("ota: ");
-//      Serial.println(nowOTA);
-    }
-    else
-    {
-      Serial.println("noota");
-    }
+    
+    char buf[64];
+    sprintf(buf, "now %lu seed %lu end %lu\r\n", p.time, p.seed, p.eventEnd);
+    Serial.print(buf);
+    
   }
 }
 
@@ -209,7 +245,15 @@ void loop() {
   uint32_t ramp_start = 0;
   uint32_t ramp_end = 4000;
   
- 
+  int i;
+  
+//  for(i = 0; i < 128; i++)
+//  {
+//    if( slaveService(true, true) )
+//      break;
+//    delay(1);
+//  }
+  
   
   while(1)
   {
@@ -218,14 +262,21 @@ void loop() {
     randomSeed(rSeed);
     service(rSeed);
     
-    greenRamp(eventStart, eventEnd);
-    analogWrite(greenPin,0);
-    duration(&eventStart, &eventEnd, 100+random()%7777);
-  
-      
-    strobeBlue(eventStart, eventEnd);
-    analogWrite(bluePin,0);
-    duration(&eventStart, &eventEnd, 100+random()%7777);
+    if(rSeed % 2)
+    {
+
+            strobeBlue(eventStart, eventEnd);
+      analogWrite(bluePin,0);
+    }
+    else
+    {
+      greenRamp(eventStart, eventEnd);
+      analogWrite(greenPin,0);
+    }
+    duration(&eventStart, &eventEnd, 4000);  
+    //duration(&eventStart, &eventEnd, 100+random()%7777);
+    
+    randomSeed(rSeed);
   }
   
 
