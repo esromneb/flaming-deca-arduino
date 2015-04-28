@@ -1,28 +1,32 @@
 /*
-  Blink
-  Turns on an LED on for one second, then off for one second, repeatedly.
- 
-  This example code is in the public domain.
+ * Make two rgb's change and flash random color patterns together.
  */
  
+// ----- FLAGS -----
+
+//#define DEBUG_TX_RX
  
-/*-----( Import needed libraries )-----*/
+ 
+//-----( Import needed libraries )-----
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
-/*-----( Declare Constants and Pin Numbers )-----*/
+//----- PINS -----
 #define CE_PIN   9
 #define CSN_PIN 10
 #define RADIO_INT_PIN 4
-
-const int masterPin1 = 7;
-const int masterPin2 = 8;
-
+const int masterPin1 = 7; // short these together for master mode
+const int masterPin2 = 8; // short these together for master mode
 const int redPin = 3;
 const int greenPin = 5;
 const int bluePin = 6;
+
+
+unsigned master = 1; // default true, however each board reads at startup
 const int pins[3] = {redPin, greenPin, bluePin};
-unsigned master = 1;
+
+
+// -----  TIMES / TIMERS -----
 uint32_t eventStart;
 uint32_t eventEnd;
 uint32_t nextEventStart;
@@ -30,9 +34,10 @@ uint32_t nextEventEnd;
 uint32_t lastSync; // measured in millis() time
 uint32_t rSeed;
 int32_t millisDelta;
-
 #define MAX_UNSYNC (50*1000)
-//#define DEBUG_TX_RX
+
+
+// ---- TYPES ---
 
 typedef struct {
   uint32_t time;
@@ -40,14 +45,12 @@ typedef struct {
   uint32_t eventEnd;
 } Packet;
 
-
-/*-----( Declare objects )-----*/
+// ---- RADIO ----
 RF24 radio(CE_PIN, CSN_PIN); // Create a Radio
-/*-----( Declare Variables )-----*/
-//int joystick[2];  // 2 element array holding Joystick readings
 const uint64_t pipe = 0xE8E9F1F2A0LL; // Define the transmit pipe
 
 
+// runs at boot
 void setMaster() {
   unsigned tied = 1;
   unsigned rd = 0;
@@ -68,11 +71,9 @@ void setMaster() {
   }
   
   master = tied;
-  
-//  Serial.print("tied together: ");
-//  Serial.println(tied);
 }
 
+// returns time corrected millis() value
 uint32_t _millis()
 {
   // alter if slave
@@ -262,24 +263,16 @@ void service(uint32_t seedIn)
 }
 
 // the loop routine runs over and over again forever:
-void loop() {  
+void loop() {
+  // run once
   unsigned r = random();
   unsigned val = random();
 //  uint32_t now = _millis();
-  
+
+  // run once setup variables  
   uint32_t ramp_start = 0;
   uint32_t ramp_end = 4000;
-  
-  int i;
-  
-//  for(i = 0; i < 128; i++)
-//  {
-//    if( slaveService(true, true) )
-//      break;
-//    delay(1);
-//  }
-  
-  
+
   while(1)
   {
     // this allows us to capture the seed
@@ -309,25 +302,4 @@ void loop() {
     printState();
     Serial.print("\r\n\r\n");
   }
-  
-
-  
-  analogWrite(greenPin,0);
-    while(1){}
-  
-
-  
-//  int thisPin = pins[r%3];
-//  analogWrite(thisPin, max(val%256, 200));
-//  
-//  delay(2000);
-  
-//  analogWrite(greenPin,255);
-//    analogWrite(bluePin,255);
-//        analogWrite(redPin,150);
-
-  
-  
-//  Serial.print(F("%d pick"));
-//  Serial.println(r);
 }
