@@ -217,6 +217,7 @@ void pickNColorCycle(uint32_t tstart, uint32_t tend)
 //      Serial.print("picked red as: ");
 //      Serial.println(RED);
       i++;
+      i = min(i,pick_max-1);
     }
 //    Serial.println("here");
     
@@ -352,8 +353,7 @@ void loop() {
 
   while(1)
   {
-//    rSeed = random();
-//    randomSeed(rSeed);
+    rSeed = random();
     masterService(0);
     
     unsigned next = rSeed %3;
@@ -369,6 +369,7 @@ void loop() {
       break;
       default:
       case 2:
+        eventEnd += 10000;
         pickNColorCycle(eventStart, eventEnd);
         break;
     }
