@@ -93,6 +93,15 @@ uint32_t _millis()
   return millis() + millisDelta;
 }
 
+uint32_t swizzle(uint32_t x)
+{
+  x ^= x >> 6; // a
+  x ^= x << 13; // b
+  x ^= x >> 12; // c
+  return x * 858216577; //UINT64_C(2685821657736338717);
+}
+
+
 // the setup routine runs once when you press reset:
 void setup() {                
   // initialize the digital pin as an output.
@@ -389,7 +398,7 @@ void loop() {
     rSeed = random();
     masterService(0);
     
-    unsigned next = rSeed %3;
+    unsigned next = swizzle(eventEnd) % 3;
 //    next = 3; // force
     
     switch(next)
