@@ -12,6 +12,7 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
+#include <RGBConverter.h>
 
 //----- PINS -----
 #define CE_PIN   9
@@ -46,6 +47,8 @@ typedef struct {
   uint32_t seed;
   uint32_t eventEnd;
 } Packet;
+
+RGBConverter Conv();
 
 // ---- RADIO ----
 RF24 radio(CE_PIN, CSN_PIN); // Create a Radio
@@ -141,7 +144,23 @@ uint8_t blueVal;
 #define HELPER_BAIL_EARILY  if( _now+(tend-tstart) < eventStart ){Serial.println("Bail master was restarted");break;}
 
 #define SRED(x) analogWrite(redPin,x);redVal = x;
+#define SGREEN(x) analogWrite(greenPin,x);greenVal = x;
+#define SBLUE(x) analogWrite(bluePin,x);blueVal = x;
 
+
+void writeColor(byte rgb[])
+{
+  SRED(rgb[0]);
+  SGREEN(rgb[1]);
+  SBLUE(rgb[2]);
+}
+// 0..1
+double randomdouble()
+{
+  double ret;
+  ret = random(0,10000)/10000.0;
+  return ret;
+}
 
 void greenRamp(uint32_t tstart, uint32_t tend)
 {
@@ -205,15 +224,29 @@ void pickNColorCycle(uint32_t tstart, uint32_t tend)
 //    Serial.print("picking: ");
 //    Serial.println(stamps[i]);
   }
+
+  byte rgb[3];
   
-  SRED(random()%255); // set point for red (important)
+//  SRED(random()%255); // set point for red (important)
+  double hue = random(1,1000)/1000.0;
+//  Serial.print("h rand:");
+//  Serial.println(hue);
+
+  RGBConverter().hsvToRgb(randomdouble(), 1-randomdouble()*.3, 1-randomdouble()*.2, rgb);
+  writeColor(rgb);
+//  Serial.println(rgb[0] * 1.000001);
+//Serial.println(rgb[1] * 1.000001);
+//Serial.println(rgb[2] * 1.000001);
+//  writeColor(rgb);
   
   i = 0; //reuse
   while(_now<tend)
   {
     if( _now > stamps[i])
     {
-      SRED(RED+(random()%walk)-walk);
+//      SRED(RED+(random()%walk)-walk);
+        RGBConverter().hsvToRgb(randomdouble(), 1-randomdouble()*.3, 1-randomdouble()*.2, rgb);
+        writeColor(rgb);
 //      Serial.print("picked red as: ");
 //      Serial.println(RED);
       i++;
@@ -357,7 +390,7 @@ void loop() {
     masterService(0);
     
     unsigned next = rSeed %3;
-    //  next = 1; // force
+//    next = 3; // force
     
     switch(next)
     {
