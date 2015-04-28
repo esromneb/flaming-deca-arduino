@@ -5,12 +5,14 @@
 // ----- FLAGS -----
 
 //#define DEBUG_TX_RX
+//#define DEBUG_PRINT_STATE
  
  
 //-----( Import needed libraries )-----
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
+
 //----- PINS -----
 #define CE_PIN   9
 #define CSN_PIN 10
@@ -109,6 +111,17 @@ void setup() {
   Serial.println(master?"Master":"Slave");
 }
 
+
+
+// ------------ PATTERNS -----------
+
+
+
+
+
+
+
+
 // master was restarted to WAY earlier, lets bail
 #define HELPER_BAIL_EARILY  if( now+(tend-tstart) < eventStart ){Serial.println("Bail master was restarted");break;}
 
@@ -147,6 +160,29 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
       analogWrite(thisPin, 255);
     }
 //    Serial.println(now%length);
+    slaveServiceQuick();
+    now = _millis();
+    HELPER_BAIL_EARILY;
+  }
+}
+
+void pickNColorCycle(uint32_t tstart, uint32_t tend)
+{
+  uint32_t now = _millis();
+  unsigned pick_max = 15;
+  unsigned max_time = 784;
+  unsigned stamps[pick_max];
+  
+  stamps[0] = tstart;
+  for(unsigned i = 1; i < pick_max; i++)
+  {
+    stamps[i] = (random() % max_time) + stamps[i-1];
+    Serial.print(stamps[i]);
+  }
+  
+  while(now<tend)
+  {
+    
     slaveServiceQuick();
     now = _millis();
     HELPER_BAIL_EARILY;
@@ -280,13 +316,26 @@ void loop() {
     randomSeed(rSeed);
     service(rSeed);
     
-    if(rSeed % 2)
+    switch(rSeed % 3)
     {
-      strobeBlue(eventStart, eventEnd);
+      case 0:
+        strobeBlue(eventStart, eventEnd);
+        break;
+      case 1:  
+        greenRamp(eventStart, eventEnd);
+      break;
+      default:
+      case 2:
+        pickNColorCycle(eventStart, eventEnd);
+    }
+    
+    if(rSeed % 3)
+    {
+      
     }
     else
     {
-      greenRamp(eventStart, eventEnd);
+
     }
     
     analogWrite(bluePin,0);
@@ -295,11 +344,15 @@ void loop() {
     
     duration(&eventStart, &eventEnd, 4000);  
     //duration(&eventStart, &eventEnd, 100+random()%7777);
-//    printState();
     randomSeed(eventEnd);
+    
+    
+#ifdef DEBUG_PRINT_STATE
     printState();
     printState();
     printState();
     Serial.print("\r\n\r\n");
-  }
-}
+#endif
+
+  } // while (1)
+} // loop
