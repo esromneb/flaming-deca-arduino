@@ -4,7 +4,7 @@
  
 // ----- FLAGS -----
 
-#define DEBUG_TX_RX
+//#define DEBUG_TX_RX
 //#define DEBUG_PRINT_STATE
  
  
@@ -280,7 +280,7 @@ boolean slaveService()
         
         // apply information from packet
         int32_t delta = p.time - now;
-        //randomSeed(p.seed); // don't seed here 
+        //randomSeed(p.seed); // don't seed here  UNUSED
         eventEnd = p.eventEnd;
         int32_t deltaDelta = delta-millisDelta;
         millisDelta = delta;
@@ -316,7 +316,7 @@ void printState()
 
 }
 
-void service(uint32_t seedIn)
+void masterService(uint32_t seedIn)
 {
   uint32_t now = millis();
   
@@ -325,7 +325,7 @@ void service(uint32_t seedIn)
   if( master )
   {
     p.time = now;
-    p.seed = seedIn;
+    p.seed = 0; // UNUSED
     p.eventEnd = eventEnd;
     
     radio.write( &p, sizeof(Packet) );
@@ -352,10 +352,9 @@ void loop() {
 
   while(1)
   {
-    // this allows us to capture the seed
-    rSeed = random();
-    randomSeed(rSeed);
-    service(rSeed);
+//    rSeed = random();
+//    randomSeed(rSeed);
+    masterService(0);
     
     unsigned next = rSeed %3;
     //  next = 1; // force
