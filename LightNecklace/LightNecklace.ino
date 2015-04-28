@@ -4,7 +4,7 @@
  
 // ----- FLAGS -----
 
-//#define DEBUG_TX_RX
+#define DEBUG_TX_RX
 //#define DEBUG_PRINT_STATE
  
  
@@ -73,6 +73,14 @@ void setMaster() {
   }
   
   master = tied;
+  if( master )
+  {
+    analogWrite(redPin,255);
+  }
+  else
+  {
+    analogWrite(greenPin,255);
+  }
 }
 
 // returns time corrected millis() value
@@ -134,6 +142,7 @@ uint8_t blueVal;
 
 #define SRED(x) analogWrite(redPin,x);redVal = x;
 
+
 void greenRamp(uint32_t tstart, uint32_t tend)
 {
   uint32_t _now = _millis();
@@ -143,9 +152,9 @@ void greenRamp(uint32_t tstart, uint32_t tend)
     analogWrite(greenPin, map(_now, tstart, tend, 0, 255));
     slaveServiceQuick();
     _now = _millis();
-    char buf[64];
-    sprintf(buf,"now %lu end %lu start %lu\r\n", _now, tstart, tend);
-    Serial.print(buf);
+//    char buf[64];
+//    sprintf(buf,"now %lu end %lu start %lu\r\n", _now, tstart, tend);
+//    Serial.print(buf);
     HELPER_BAIL_EARILY;
   }
 }
@@ -193,21 +202,23 @@ void pickNColorCycle(uint32_t tstart, uint32_t tend)
   for(i = 1; i < pick_max; i++)
   {
     stamps[i] = random(min_time, max_time) + stamps[i-1];
-    Serial.print("picking: ");
-    Serial.println(stamps[i]);
+//    Serial.print("picking: ");
+//    Serial.println(stamps[i]);
   }
   
+  SRED(random()%255); // set point for red (important)
+  
   i = 0; //reuse
-  while(_now<stamps[pick_max-1])
+  while(_now<tend)
   {
     if( _now > stamps[i])
     {
       SRED(RED+(random()%walk)-walk);
-      Serial.print("picked red as: ");
-      Serial.println(RED);
+//      Serial.print("picked red as: ");
+//      Serial.println(RED);
       i++;
     }
-    Serial.println("here");
+//    Serial.println("here");
     
     
     
@@ -239,7 +250,7 @@ void slaveServiceQuick()
     radio.whatHappened(txok,txfail,rxready);
     if( rxready )
     {
-      slaveService(true);
+      slaveService();
       radio.stopListening();
       radio.startListening();
     }
@@ -254,14 +265,14 @@ void slaveServiceQuick()
 }
 
 // returns true if slave gets a packet
-boolean slaveService(boolean force)
+boolean slaveService()
 {
   boolean ret = false;
   if( !master )
   {
     Packet p;  
     uint32_t now = millis();
-    if(force || lastSync == 0 || (now-lastSync) > MAX_UNSYNC )
+    if(true || lastSync == 0 || (now-lastSync) > MAX_UNSYNC )
     {
       if ( radio.available() )
       {
@@ -269,7 +280,7 @@ boolean slaveService(boolean force)
         
         // apply information from packet
         int32_t delta = p.time - now;
-        randomSeed(p.seed);
+        //randomSeed(p.seed); // don't seed here 
         eventEnd = p.eventEnd;
         int32_t deltaDelta = delta-millisDelta;
         millisDelta = delta;
@@ -300,7 +311,7 @@ void printState()
   uint32_t pick = random();
   
   char buf[64];
-  sprintf(buf, "_now = %lu pick %lu start %lu end %lu", _now, pick, eventStart, eventEnd);
+  sprintf(buf, "_now = %lu pick %lu %lu %lu start %lu end %lu", _now, random(), random(), random(), eventStart, eventEnd);
   Serial.println(buf);
 
 }
@@ -347,7 +358,7 @@ void loop() {
     service(rSeed);
     
     unsigned next = rSeed %3;
-      next = 1; // force
+    //  next = 1; // force
     
     switch(next)
     {
@@ -363,17 +374,17 @@ void loop() {
         break;
     }
     
+    // rng WILL not be the same until seed below
+    
     analogWrite(bluePin,0);
     analogWrite(redPin,0);
     analogWrite(greenPin,0);
     
-    duration(&eventStart, &eventEnd, 4000);  
+    duration(&eventStart, &eventEnd, 4000);
     //duration(&eventStart, &eventEnd, 100+random()%7777);
     randomSeed(eventEnd);
     
 #ifdef DEBUG_PRINT_STATE
-    printState();
-    printState();
     printState();
     Serial.print("\r\n\r\n");
 #endif
