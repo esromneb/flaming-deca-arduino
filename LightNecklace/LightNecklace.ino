@@ -244,8 +244,8 @@ void pickNColorCycle(uint32_t tstart, uint32_t tend)
 {
   uint32_t _now = _millis();
   unsigned pick_max = 90;
-  unsigned min_time = 400;
-  unsigned max_time = 2000;
+  unsigned min_time = 75;
+  unsigned max_time = 700;
   unsigned walk = 100;
 
   unsigned stamps[pick_max];
@@ -264,7 +264,10 @@ void pickNColorCycle(uint32_t tstart, uint32_t tend)
 //  Serial.print("h rand:");
 //  Serial.println(hue);
 
-  RGBConverter().hsvToRgb(randomdouble(), 1-randomdouble()*.3, 1-randomdouble()*.2, rgb);
+  double s = 1-randomdouble()*.3;
+  double v = 1-randomdouble()*.2;
+
+  RGBConverter().hsvToRgb(randomdouble(), s, v, rgb);
   writeColor(rgb);
 //  Serial.println(rgb[0] * 1.000001);
 //Serial.println(rgb[1] * 1.000001);
@@ -277,7 +280,7 @@ void pickNColorCycle(uint32_t tstart, uint32_t tend)
     if( _now > stamps[i])
     {
 //      SRED(RED+(random()%walk)-walk);
-        RGBConverter().hsvToRgb(randomdouble(), 1-randomdouble()*.3, 1-randomdouble()*.2, rgb);
+        RGBConverter().hsvToRgb(randomdouble(), s, v, rgb);
         writeColor(rgb);
 //      Serial.print("picked red as: ");
 //      Serial.println(RED);
@@ -422,7 +425,7 @@ void loop() {
     masterService(0);
     
     unsigned next = swizzle(eventEnd) % 3;
-//    next = 3; // force
+    next = 2; // force
     
     switch(next)
     {
