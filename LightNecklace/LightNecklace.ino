@@ -218,9 +218,9 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
 void pickNColorCycle(uint32_t tstart, uint32_t tend)
 {
   uint32_t _now = _millis();
-  unsigned pick_max = 15;
-  unsigned min_time = 104;
-  unsigned max_time = 784;
+  unsigned pick_max = 90;
+  unsigned min_time = 400;
+  unsigned max_time = 2000;
   unsigned walk = 100;
 
   unsigned stamps[pick_max];
@@ -230,8 +230,6 @@ void pickNColorCycle(uint32_t tstart, uint32_t tend)
   for(i = 1; i < pick_max; i++)
   {
     stamps[i] = random(min_time, max_time) + stamps[i-1];
-//    Serial.print("picking: ");
-//    Serial.println(stamps[i]);
   }
 
   byte rgb[3];
