@@ -192,7 +192,7 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
   char buf[64];
 
   uint32_t _now = _millis();
-  unsigned sections = random()%20+5;
+  unsigned sections = random()%10+5;
   uint32_t length = (tend-tstart)/sections;
 
   unsigned thisPin = pins[random()%3];
@@ -201,11 +201,21 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
   {
     if( _now%(length*2) < length )
     {
+      if( randomdouble() < 0.2 )
+      {
+        thisPin = pins[random()%3];
+      }
       analogWrite(thisPin, 0);
     }
     else
     {
       analogWrite(thisPin, 255);
+    }
+    
+    if( randomdouble() < 0.001 )
+    {
+      length -= length / 5;
+      length = max(length, 30);
     }
 //    Serial.println(now%length);
     slaveServiceQuick();
@@ -425,7 +435,7 @@ void loop() {
     masterService(0);
     
     unsigned next = swizzle(eventEnd) % 3;
-    next = 2; // force
+//    next = 0; // force
     
     switch(next)
     {
@@ -451,7 +461,7 @@ void loop() {
     analogWrite(greenPin,0);
     
     duration(&eventStart, &eventEnd, 4000);
-    eventEnd += swizzle(eventEnd)%5555;
+    eventEnd += swizzle(eventEnd)%7555;
     //duration(&eventStart, &eventEnd, 100+random()%7777);
     randomSeed(eventEnd);
     
