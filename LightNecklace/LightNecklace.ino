@@ -120,21 +120,32 @@ void setup() {
 
 
 
+uint8_t redVal;
+uint8_t greenVal;
+uint8_t blueVal;
+
+#define RED redVal
+#define BLUE blueVal
+#define GREEN greenVal
 
 
 // master was restarted to WAY earlier, lets bail
-#define HELPER_BAIL_EARILY  if( now+(tend-tstart) < eventStart ){Serial.println("Bail master was restarted");break;}
+#define HELPER_BAIL_EARILY  if( _now+(tend-tstart) < eventStart ){Serial.println("Bail master was restarted");break;}
 
+#define SRED(x) analogWrite(redPin,x);redVal = x;
 
 void greenRamp(uint32_t tstart, uint32_t tend)
 {
-  uint32_t now = _millis();
+  uint32_t _now = _millis();
   random();
-  while(now<tend)
+  while(_now<tend)
   {
-    analogWrite(greenPin, map(now, tstart, tend, 0, 255));
+    analogWrite(greenPin, map(_now, tstart, tend, 0, 255));
     slaveServiceQuick();
-    now = _millis();
+    _now = _millis();
+    char buf[64];
+    sprintf(buf,"now %lu end %lu start %lu\r\n", _now, tstart, tend);
+    Serial.print(buf);
     HELPER_BAIL_EARILY;
   }
 }
@@ -143,15 +154,15 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
 {
   char buf[64];
 
-  uint32_t now = _millis();
+  uint32_t _now = _millis();
   unsigned sections = random()%20+5;
   uint32_t length = (tend-tstart)/sections;
 
   unsigned thisPin = pins[random()%3];
 
-  while(now<tend)
+  while(_now<tend)
   {
-    if( now%(length*2) < length )
+    if( _now%(length*2) < length )
     {
       analogWrite(thisPin, 0);
     }
@@ -161,30 +172,49 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
     }
 //    Serial.println(now%length);
     slaveServiceQuick();
-    now = _millis();
+    _now = _millis();
     HELPER_BAIL_EARILY;
   }
 }
 
+// causes BAIL on MASTER (Bad) FIXME
 void pickNColorCycle(uint32_t tstart, uint32_t tend)
 {
-  uint32_t now = _millis();
+  uint32_t _now = _millis();
   unsigned pick_max = 15;
+  unsigned min_time = 104;
   unsigned max_time = 784;
+  unsigned walk = 100;
+
   unsigned stamps[pick_max];
   
   stamps[0] = tstart;
-  for(unsigned i = 1; i < pick_max; i++)
+  unsigned i;
+  for(i = 1; i < pick_max; i++)
   {
-    stamps[i] = (random() % max_time) + stamps[i-1];
-    Serial.print(stamps[i]);
+    stamps[i] = random(min_time, max_time) + stamps[i-1];
+    Serial.print("picking: ");
+    Serial.println(stamps[i]);
   }
   
-  while(now<tend)
+  i = 0; //reuse
+  while(_now<stamps[pick_max-1])
   {
+    if( _now > stamps[i])
+    {
+      SRED(RED+(random()%walk)-walk);
+      Serial.print("picked red as: ");
+      Serial.println(RED);
+      i++;
+    }
+    Serial.println("here");
+    
+    
+    
+    //analogWrite(redPin, random()%256);
     
     slaveServiceQuick();
-    now = _millis();
+    _now = _millis();
     HELPER_BAIL_EARILY;
   }
 }
@@ -316,7 +346,10 @@ void loop() {
     randomSeed(rSeed);
     service(rSeed);
     
-    switch(rSeed % 3)
+    unsigned next = rSeed %3;
+      next = 1; // force
+    
+    switch(next)
     {
       case 0:
         strobeBlue(eventStart, eventEnd);
@@ -327,15 +360,7 @@ void loop() {
       default:
       case 2:
         pickNColorCycle(eventStart, eventEnd);
-    }
-    
-    if(rSeed % 3)
-    {
-      
-    }
-    else
-    {
-
+        break;
     }
     
     analogWrite(bluePin,0);
@@ -345,7 +370,6 @@ void loop() {
     duration(&eventStart, &eventEnd, 4000);  
     //duration(&eventStart, &eventEnd, 100+random()%7777);
     randomSeed(eventEnd);
-    
     
 #ifdef DEBUG_PRINT_STATE
     printState();
