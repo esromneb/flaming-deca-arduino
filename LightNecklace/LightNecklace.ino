@@ -197,6 +197,8 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
 
   unsigned thisPin = pins[random()%3];
 
+  // use swizzle for timing stuff FIXME
+
   while(_now<tend)
   {
     if( _now%(length*2) < length )
@@ -249,7 +251,6 @@ void hueRoll(uint32_t tstart, uint32_t tend)
   }
 }
 
-// causes BAIL on MASTER (Bad) FIXME
 void pickNColorCycle(uint32_t tstart, uint32_t tend)
 {
   uint32_t _now = _millis();
@@ -434,7 +435,7 @@ void loop() {
     rSeed = random();
     masterService(0);
     
-    unsigned next = swizzle(eventEnd) % 3;
+    unsigned next = swizzle(eventEnd) % 4;
 //    next = 0; // force
     
     switch(next)
