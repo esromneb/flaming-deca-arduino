@@ -411,7 +411,7 @@ void loop() {
       break;
       default:
       case 2:
-        eventEnd += 10000;
+//        eventEnd += 10000;
         pickNColorCycle(eventStart, eventEnd);
         break;
     }
@@ -423,6 +423,7 @@ void loop() {
     analogWrite(greenPin,0);
     
     duration(&eventStart, &eventEnd, 4000);
+    eventEnd += swizzle(eventEnd)%5555;
     //duration(&eventStart, &eventEnd, 100+random()%7777);
     randomSeed(eventEnd);
     
