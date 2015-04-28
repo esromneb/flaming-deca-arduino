@@ -214,6 +214,31 @@ void strobeBlue(uint32_t tstart, uint32_t tend)
   }
 }
 
+void hueRoll(uint32_t tstart, uint32_t tend)
+{
+  uint32_t _now = _millis();
+  unsigned dir = random()%2;
+  while(_now<tend)
+  {
+   
+    double val = map(_now, tstart, tend, 0, 10000);
+    val = val / 10000.0;
+    
+    if( dir )
+    {
+      val = 1.0 - val;
+    }
+
+    byte rgb[3];
+    RGBConverter().hsvToRgb(val, 1.0, 1.0, rgb);
+    writeColor(rgb);
+   
+    slaveServiceQuick();
+    _now = _millis();
+    HELPER_BAIL_EARILY;
+  }
+}
+
 // causes BAIL on MASTER (Bad) FIXME
 void pickNColorCycle(uint32_t tstart, uint32_t tend)
 {
@@ -401,16 +426,18 @@ void loop() {
     
     switch(next)
     {
+      default:
       case 0:
         strobeBlue(eventStart, eventEnd);
         break;
       case 1:  
         greenRamp(eventStart, eventEnd);
-      break;
-      default:
+        break;
       case 2:
-//        eventEnd += 10000;
         pickNColorCycle(eventStart, eventEnd);
+        break;
+      case 3:
+        hueRoll(eventStart, eventEnd);
         break;
     }
     
