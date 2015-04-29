@@ -5,7 +5,7 @@
 // ----- FLAGS -----
 
 //#define DEBUG_TX_RX
-//#define DEBUG_PRINT_STATE
+#define DEBUG_PRINT_STATE
  
  
 //-----( Import needed libraries )-----
@@ -251,13 +251,70 @@ void hueRoll(uint32_t tstart, uint32_t tend)
   }
 }
 
+void hueRollLimited(uint32_t tstart, uint32_t tend)
+{
+  uint32_t _now = _millis();
+  unsigned dir = random()%2;
+  int limStart,limEnd;
+  limStart = random()%4500;
+  limEnd = random()%4500;
+  
+  while(_now<tend)
+  {
+   
+    double val = map(_now, tstart, tend, 0+limStart, 10000-limEnd);
+    val = val / 10000.0;
+    
+    if( dir )
+    {
+      val = 1.0 - val;
+    }
+
+    byte rgb[3];
+    RGBConverter().hsvToRgb(val, 1.0, 1.0, rgb);
+    writeColor(rgb);
+   
+    slaveServiceQuick();
+    _now = _millis();
+    HELPER_BAIL_EARILY;
+  }
+}
+
+void hueRollExtended(uint32_t tstart, uint32_t tend)
+{
+  uint32_t _now = _millis();
+  unsigned dir = random()%2;
+  int limStart,limEnd;
+  limStart = random()%4500;
+  limEnd = random()%4500;
+  
+  while(_now<tend)
+  {
+   
+    double val = map(_now, tstart, tend, 0+limStart, 10000-limEnd);
+    val = val / 10000.0;
+
+    
+
+    byte rgb[3];
+    RGBConverter().hsvToRgb(val, 1.0, 1.0, rgb);
+    writeColor(rgb);
+   
+    slaveServiceQuick();
+    _now = _millis();
+    HELPER_BAIL_EARILY;
+  }
+}
+
 void pickNColorCycle(uint32_t tstart, uint32_t tend)
 {
   uint32_t _now = _millis();
   unsigned pick_max = 90;
-  unsigned min_time = 75;
+  unsigned min_time = 500;
   unsigned max_time = 700;
   unsigned walk = 100;
+  
+  
 
   unsigned stamps[pick_max];
   
@@ -435,8 +492,8 @@ void loop() {
     rSeed = random();
     masterService(0);
     
-    unsigned next = swizzle(eventEnd) % 4;
-//    next = 0; // force
+    unsigned next = swizzle(eventEnd) % 5;
+    next = 4; // force
     
     switch(next)
     {
@@ -452,6 +509,9 @@ void loop() {
         break;
       case 3:
         hueRoll(eventStart, eventEnd);
+        break;
+      case 4:
+        hueRollLimited(eventStart, eventEnd);
         break;
     }
     
