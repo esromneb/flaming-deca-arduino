@@ -23,6 +23,7 @@ const int masterPin2 = 8; // short these together for master mode
 const int redPin = 3;
 const int greenPin = 5;
 const int bluePin = 6;
+const int onboardPin = 13; // can only be used before the radio is first turned on :(
 
 
 unsigned master = 1; // default true, however each board reads at startup
@@ -101,6 +102,24 @@ uint32_t swizzle(uint32_t x)
   return x * 858216577; //UINT64_C(2685821657736338717);
 }
 
+void flashBootPattern()
+{
+   // FLASH BOOT PATTERN
+  pinMode(onboardPin, OUTPUT);
+  
+  for(unsigned i = 0; i < 30; i++)
+  {
+    digitalWrite(onboardPin,LOW);
+    delay(65-(i/30.0)*65.0);
+    digitalWrite(onboardPin,HIGH);
+    delay(85-(i/30.0)*80.0);
+  }
+  digitalWrite(onboardPin,HIGH);
+  delay(300);
+  pinMode(onboardPin,INPUT);
+  // END BOOT
+}
+
 
 // the setup routine runs once when you press reset:
 void setup() {                
@@ -111,6 +130,11 @@ void setup() {
   pinMode(redPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
   pinMode(bluePin, OUTPUT); 
+ 
+  //pin 13 "onboardPin" for the onboard led can only be used if radio is NOT inintiaited
+  // sad face
+  flashBootPattern();
+  
   eventStart = 0;
   eventEnd = 4000;
   lastSync = 0;
