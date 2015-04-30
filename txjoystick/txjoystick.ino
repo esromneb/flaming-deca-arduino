@@ -45,6 +45,7 @@ int joystick[2];  // 2 element array holding Joystick readings
 void setup()   /****** SETUP: RUNS ONCE ******/
 {
   Serial.begin(9600);
+  Serial.print("boot example tx joystick");
   radio.begin();
   radio.openWritingPipe(pipe);
 }//--(end setup )---
@@ -52,6 +53,7 @@ void setup()   /****** SETUP: RUNS ONCE ******/
 
 void loop()   /****** LOOP: RUNS CONSTANTLY ******/
 {
+  Serial.print("here");
   joystick[0] = analogRead(JOYSTICK_X);
   joystick[1] = analogRead(JOYSTICK_Y);
   
