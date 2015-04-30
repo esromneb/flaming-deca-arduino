@@ -38,7 +38,6 @@ uint32_t nextEventEnd;
 uint32_t lastSync; // measured in millis() time
 uint32_t rSeed;
 int32_t millisDelta;
-#define MAX_UNSYNC (50*1000)
 
 
 // ---- TYPES ---
@@ -48,6 +47,8 @@ typedef struct {
   uint32_t seed;
   uint32_t eventEnd;
 } Packet;
+
+
 
 RGBConverter Conv();
 
@@ -125,7 +126,7 @@ void flashBootPattern()
 void setup() {                
   // initialize the digital pin as an output.
 
-  Serial.begin(9600);
+  Serial.begin(19200);
   randomSeed(42);
   pinMode(redPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
@@ -404,6 +405,13 @@ void slaveServiceQuick()
   {
     return;
   }
+  
+  if(serialChannelAvail(sizeof(Packet)))// required to call this a lot
+  {
+    slaveService();
+    return; // SKIP RADIO PACKET
+  }
+  
   // check int pin
   if( !digitalRead(RADIO_INT_PIN) )
   {
@@ -429,42 +437,50 @@ void slaveServiceQuick()
 boolean slaveService()
 {
   boolean ret = false;
-  if( !master )
+  if( master )
   {
-    Packet p;  
-    uint32_t now = millis();
-    if(true || lastSync == 0 || (now-lastSync) > MAX_UNSYNC )
-    {
-      if ( radio.available() )
-      {
-        radio.read( &p, sizeof(Packet) );
-        
-        // apply information from packet
-        int32_t delta = p.time - now;
-        //randomSeed(p.seed); // don't seed here  UNUSED
-        eventEnd = p.eventEnd;
-        int32_t deltaDelta = delta-millisDelta;
-        millisDelta = delta;
-        
-        
-        lastSync = now; // in millis() time
-        
-        
-        char buf[64];
-#ifdef DEBUG_TX_RX
-        sprintf(buf, "now %lu seed %lu end %lu delta %ld\r\n", p.time, p.seed, p.eventEnd, deltaDelta);
-        Serial.print(buf);
-#endif
-        ret = true;
-      }
-      else
-      {
-        Serial.print(".");
-      }
-    }
+    return false;
   }
-  return ret;
-}
+  Packet p;  
+  uint32_t now = millis();
+
+  boolean gotPacket = false;
+  // check serial
+  if(serialChannelAvail(sizeof(Packet)))
+  {
+     serialChannelRead( &p, sizeof(Packet) );
+     ret = true;
+  }
+  // check radio
+  if ( radio.available() )
+  {
+    radio.read( &p, sizeof(Packet) );
+    ret = true;
+  } 
+  
+  if( ret )
+  {
+    // apply information from packet
+    int32_t delta = p.time - now;
+    //randomSeed(p.seed); // don't seed here  UNUSED
+    eventEnd = p.eventEnd;
+    int32_t deltaDelta = delta-millisDelta;
+    millisDelta = delta;
+    
+    
+    lastSync = now; // in millis() time
+      
+//#ifdef DEBUG_TX_RX
+      char buf[64];
+      sprintf(buf, "now %lu seed %lu end %lu delta %ld\r\n", p.time, p.seed, p.eventEnd, deltaDelta);
+      Serial.print(buf);
+//#endif
+    } // serial or radio packet
+    
+    
+    return ret;
+} // fn
+
 
 void printState()
 {
@@ -477,7 +493,91 @@ void printState()
 
 }
 
-void masterService(uint32_t seedIn)
+// 0 for nothing, 1 for got header bytes (BUT PACKET BYTES ARE UNREAD). 2 for everything ready
+int serialChannelPacket = 0;
+
+char preamble[32] = "abcdefghijklm";
+
+void serialChannelWrite(void* p, unsigned size)
+{
+  Serial.print(preamble);
+  char *c = (char*)p;
+  for(unsigned i = 0; i < size; i++)
+  {
+    Serial.print(c[i]);
+  }
+}
+
+boolean serialChannelAvail(unsigned size)
+{
+  unsigned avail = Serial.available();
+//  Serial.print("in serialChannelAvail:");
+//  Serial.println(serialChannelPacket);
+
+  if( serialChannelPacket == 2 )
+  {
+    return true;
+  }
+
+  // only if we are in middle mode
+  if( serialChannelPacket == 1 )
+  {
+    if( avail >= size )
+    {
+      Serial.println("full packet bytes");
+      serialChannelPacket = 2;
+      return true;
+    }
+    return false;
+  }
+  
+  
+  // normal operation (wait till pream + msg bytes are avail)
+  if( size + strlen(preamble) >= avail)
+  {
+    return false;
+  }
+  
+  char c;
+  unsigned ptr = 0;
+  unsigned target = strlen(preamble);
+  while(Serial.available())
+  {
+    c = Serial.read();
+    Serial.print(c);
+    if( c == preamble[ptr] )
+    {
+      ptr++;
+    }
+    else
+    {
+      ptr = 0;
+    }
+    if( ptr == target)
+    {
+      serialChannelPacket = 1;
+      Serial.println("GOT PACKET");
+      return serialChannelAvail(size); // recurse one time to check if all the bytes are ready now
+    }
+  }
+  return false;
+}
+
+void serialChannelRead(void* p, unsigned size)
+{
+  char *c = (char*)p;
+  Serial.println("\r\n about to packet:");
+  for(unsigned i = 0; i < size; i++)
+  {
+    c[i] == Serial.read();
+    Serial.println(c[i]);
+  }
+  serialChannelPacket = 0; // reset flag
+}
+
+
+
+void masterService()
 {
   uint32_t now = millis();
   
@@ -490,6 +590,7 @@ void masterService(uint32_t seedIn)
     p.eventEnd = eventEnd;
     
     radio.write( &p, sizeof(Packet) );
+    serialChannelWrite( &p, sizeof(Packet) );
     
     char buf[64];
 #ifdef DEBUG_TX_RX
@@ -511,10 +612,13 @@ void loop() {
   uint32_t ramp_start = 0;
   uint32_t ramp_end = 4000;
 
+
+
   while(1)
   {
+          
     rSeed = random();
-    masterService(0);
+    masterService();
     
     unsigned next = swizzle(eventEnd) % 5;
     next = 4; // force
