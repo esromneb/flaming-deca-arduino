@@ -144,7 +144,7 @@ void setup() {
   radio.begin();
   if( master )
   {
-    radio.setPALevel(RF24_PA_LOW); // master tx low power for now
+    //radio.setPALevel(RF24_PA_LOW); // master tx low power for now
     radio.openWritingPipe(pipe);
   }
   else
@@ -621,7 +621,7 @@ void loop() {
     masterService();
     
     unsigned next = swizzle(eventEnd) % 5;
-    next = 4; // force
+//    next = 4; // force
     
     switch(next)
     {
@@ -645,9 +645,9 @@ void loop() {
     
     // rng WILL not be the same until seed below
     
-    analogWrite(bluePin,0);
-    analogWrite(redPin,0);
-    analogWrite(greenPin,0);
+//    analogWrite(bluePin,0);
+//    analogWrite(redPin,0);
+//    analogWrite(greenPin,0);
     
     duration(&eventStart, &eventEnd, 4000);
     eventEnd += swizzle(eventEnd)%7555;
